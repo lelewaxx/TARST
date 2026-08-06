@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#18211c" />
+    <title>TARST — Take a rest sometimes</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header>
+        <a class="wordmark" href="#top" aria-label="TARST 首页">tarst<span>.</span></a>
+        <p class="tagline">Take a rest<br />sometimes.</p>
+        <button class="quiet-button" id="historyButton">回望 <span>↗</span></button>
+      </header>
+
+      <section class="welcome" id="top">
+        <p class="eyebrow">A small room for your inner weather</p>
+        <h1>今天，想从<br /><em>哪里</em>说起？</h1>
+        <p class="intro">不必组织好语言。TARST 会听着，不急着替你下结论。</p>
+      </section>
+
+      <section class="modes" aria-label="选择会话模式">
+        <button class="mode active" data-mode="listen">
+          <span class="mode-number">01</span>
+          <span class="mode-copy"><strong>倾听</strong><small>我想先把话说完</small></span>
+          <span class="arrow">↗</span>
+        </button>
+        <button class="mode" data-mode="diary">
+          <span class="mode-number">02</span>
+          <span class="mode-copy"><strong>日记</strong><small>为今天留下一页</small></span>
+          <span class="arrow">↗</span>
+        </button>
+      </section>
+
+      <section class="room" aria-live="polite">
+        <div class="room-top"><span id="modeLabel">倾听模式</span><span class="status" id="status">准备好了</span></div>
+        <div class="orb-wrap" id="orbWrap">
+          <div class="rings"></div><div class="orb"><i></i><i></i><i></i></div>
+        </div>
+        <p class="prompt" id="prompt">我在。你可以从任何一处开始。</p>
+        <p class="subprompt" id="subprompt">按住说话，或轻点开始一段不被催促的讲述。</p>
+        <button class="record" id="recordButton" aria-label="开始说话"><span class="mic"></span><span id="recordText">开始说话</span></button>
+        <p class="privacy">音频仅用于本次会话处理。结束后由你决定是否留下记录。</p>
+      </section>
+
+      <section class="reflection hidden" id="reflection">
+        <div class="reflection-head"><span class="eyebrow">在你离开之前</span><button id="closeReflection">稍后再说</button></div>
+        <h2>要不要为今天<br />留下一页？</h2>
+        <div class="note" id="noteText"></div>
+        <div class="reflection-actions"><button class="save" id="saveNote">留下它</button><button class="edit" id="editNote">修改</button></div>
+      </section>
+    </main>
+    <dialog id="historyDialog"><button class="close-dialog" id="closeHistory">×</button><p class="eyebrow">回望</p><h2>这里会慢慢长出<br />你的生活脉络。</h2><p>第一版只在你主动保存后记录日记。它不会暗中给你贴标签。</p></dialog>
+    <script src="/app.js"></script>
+  </body>
+</html>

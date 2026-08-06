@@ -1,0 +1,5 @@
+node_modules/
+.env
+.env.*
+.DS_Store
+TARST-2026-08-06.zip
