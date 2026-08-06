@@ -14,11 +14,10 @@ public final class AudioRuntime {
     public var onEvent: ((Event) -> Void)?
     private let audioEngine = AVAudioEngine()
     private let processingQueue = DispatchQueue(label: "com.tarst.audio-processing")
-    private let policy = SessionPolicy()
     private let ringBuffer = PCM16RingBuffer()
     private var engine: PicovoiceEngine?
     private var accumulated: [Int16] = []
-    private var mode: SessionMode = .idle
+    private let session = SessionController()
     private var isRunning = false
 
     public init() {}
@@ -32,7 +31,7 @@ public final class AudioRuntime {
         audioEngine.prepare()
         try audioEngine.start()
         isRunning = true
-        mode = .idle
+        session.resume()
     }
 
     public func stop() {
@@ -42,11 +41,11 @@ public final class AudioRuntime {
         isRunning = false
         accumulated.removeAll(keepingCapacity: false)
         ringBuffer.clear()
-        mode = .paused
+        session.pause()
     }
 
-    public func beginResponse() { processingQueue.async { self.mode = .responding } }
-    public func returnToIdle() { processingQueue.async { self.mode = .idle } }
+    public func beginResponse() { processingQueue.async { self.session.beginResponse() } }
+    public func returnToIdle() { processingQueue.async { self.session.responseFinished() } }
 
     private func installTap(sampleRate: Double) throws {
         let input = audioEngine.inputNode
@@ -84,34 +83,14 @@ public final class AudioRuntime {
 
     private func evaluate(result: (keywordIndex: Int?, voiceProbability: Float)) {
         let now = ProcessInfo.processInfo.systemUptime
-        switch mode {
-        case .idle:
-            if let index = result.keywordIndex {
-                mode = .awaitingSpeech(deadline: now + policy.speechStartTimeout)
-                emit(.wakeWord(index))
-            }
-        case .awaitingSpeech(let deadline):
-            if result.voiceProbability >= policy.voiceThreshold {
-                mode = .listening(startedAt: now, lastVoiceAt: now)
-                emit(.speechStarted)
-            } else if now >= deadline {
-                mode = .idle
-                emit(.waitingTimedOut)
-            }
-        case .listening(let startedAt, let lastVoiceAt):
-            if result.voiceProbability >= policy.voiceThreshold {
-                mode = .listening(startedAt: startedAt, lastVoiceAt: now)
-            } else if now - lastVoiceAt >= policy.turnSilenceTimeout || now - startedAt >= policy.maximumTurnLength {
-                mode = .responding
-                emit(.turnEnded)
-            }
-        case .responding:
-            if result.voiceProbability >= policy.voiceThreshold {
-                mode = .idle
-                emit(.speechDuringResponse)
-            }
-        case .paused:
-            break
+        let effect = session.process(keywordIndex: result.keywordIndex, voiceProbability: result.voiceProbability, at: now)
+        switch effect {
+        case .none: break
+        case .wakeWordAccepted: emit(.wakeWord(result.keywordIndex ?? 0))
+        case .speechStarted: emit(.speechStarted)
+        case .turnEnded: emit(.turnEnded)
+        case .speechDuringResponse: emit(.speechDuringResponse)
+        case .waitingTimedOut: emit(.waitingTimedOut)
         }
     }
 
