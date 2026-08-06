@@ -12,6 +12,7 @@ rm -rf "$app_dir"
 mkdir -p "$app_dir/Contents/MacOS" "$app_dir/Contents/Resources"
 cp "$package_dir/.build/arm64-apple-macosx/release/TARST" "$app_dir/Contents/MacOS/TARST"
 cp "$package_dir/Resources/Info.plist" "$app_dir/Contents/Info.plist"
+cp "$package_dir/Runtime/local_voice_detector.py" "$app_dir/Contents/Resources/local_voice_detector.py"
 codesign --force --sign - "$app_dir"
 
 echo "Built $app_dir"

@@ -13,8 +13,7 @@ let package = Package(
             path: "Sources/TARST",
             linkerSettings: [
                 .linkedFramework("AVFoundation"),
-                .linkedFramework("ServiceManagement"),
-                .linkedFramework("Security")
+                .linkedFramework("ServiceManagement")
             ]
         ),
         .executableTarget(name: "TARSTApp", dependencies: ["TARSTCore"], path: "Sources/TARSTApp"),

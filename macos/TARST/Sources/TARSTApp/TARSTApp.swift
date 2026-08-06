@@ -1,4 +1,4 @@
-import AVFoundation
+@preconcurrency import AVFoundation
 import AppKit
 import ServiceManagement
 import SwiftUI
@@ -30,10 +30,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 @MainActor
-final class TARSTCoordinator: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
+final class TARSTCoordinator: NSObject, ObservableObject {
     @Published private(set) var status: TARSTStatus = .needsSetup
     @Published private(set) var isListeningEnabled = false
-    @Published var setupMessage = "导入本地 Picovoice 运行库、两个唤醒词模型，并保存 AccessKey。"
+    @Published var setupMessage = "安装本地 openWakeWord + Silero VAD 运行环境，并导入两个唤醒词 ONNX 模型。"
 
     private let runtime = AudioRuntime()
     private let synthesizer = AVSpeechSynthesizer()
@@ -59,7 +59,7 @@ final class TARSTCoordinator: NSObject, ObservableObject, AVSpeechSynthesizerDel
     }
 
     func startListening() {
-        guard TARSTPaths.isConfigured, let accessKey = KeychainStore.readAccessKey() else {
+        guard TARSTPaths.isConfigured else {
             status = .needsSetup
             return
         }
@@ -71,7 +71,7 @@ final class TARSTCoordinator: NSObject, ObservableObject, AVSpeechSynthesizerDel
                     return
                 }
                 do {
-                    try self.runtime.start(accessKey: accessKey)
+                    try self.runtime.start()
                     self.isListeningEnabled = true
                     self.status = .idle
                 } catch {
@@ -119,6 +119,8 @@ final class TARSTCoordinator: NSObject, ObservableObject, AVSpeechSynthesizerDel
     }
 }
 
+extension TARSTCoordinator: @preconcurrency AVSpeechSynthesizerDelegate {}
+
 private struct MenuContent: View {
     @ObservedObject var coordinator: TARSTCoordinator
     @Environment(\.openSettings) private var openSettings
@@ -142,7 +144,6 @@ private struct MenuContent: View {
 
 private struct SettingsView: View {
     @ObservedObject var coordinator: TARSTCoordinator
-    @State private var accessKey = KeychainStore.readAccessKey() ?? ""
     @State private var importing: KeywordTarget?
     @State private var autoLaunch = SMAppService.mainApp.status == .enabled
 
@@ -150,20 +151,14 @@ private struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section("本地 Picovoice 设置") {
-                SecureField("AccessKey", text: $accessKey)
-                Text("仅保存到此 Mac 的 Keychain，不会提交到 Git。")
+            Section("本地检测器") {
+                Text("先在项目目录运行 scripts/install-local-voice-runtime.sh。它只安装本机的 openWakeWord 与 Silero VAD，不需要账户或 API Key。")
                     .font(.caption).foregroundStyle(.secondary)
-                Button("保存 AccessKey") {
-                    do {
-                        try KeychainStore.saveAccessKey(accessKey.trimmingCharacters(in: .whitespacesAndNewlines))
-                        coordinator.refreshConfiguration()
-                    } catch { coordinator.setupMessage = error.localizedDescription }
-                }
-                Link("下载本地运行库说明", destination: URL(string: "https://picovoice.ai/docs/quick-start/porcupine-c/")!)
+                Link("openWakeWord 自定义模型说明", destination: URL(string: "https://github.com/dscripka/openWakeWord#training-new-models")!)
+                Link("Silero VAD", destination: URL(string: "https://github.com/snakers4/silero-vad")!)
             }
 
-            Section("唤醒词模型") {
+            Section("唤醒词模型（ONNX）") {
                 modelRow("TARST", destination: TARSTPaths.tarstKeyword, target: .tarst)
                 modelRow("Hey TARST", destination: TARSTPaths.heyTarstKeyword, target: .heyTarst)
             }
@@ -201,7 +196,7 @@ private struct SettingsView: View {
             Spacer()
             Text(FileManager.default.fileExists(atPath: destination.path) ? "已导入" : "未导入")
                 .foregroundStyle(.secondary)
-            Button("导入 .ppn") { importing = target }
+            Button("导入 .onnx") { importing = target }
         }
     }
 }

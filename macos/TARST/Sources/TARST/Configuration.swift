@@ -8,26 +8,27 @@ public enum TARSTPaths {
         return path
     }
 
-    public static var picovoiceDirectory: URL {
-        let path = applicationSupport.appending(path: "Picovoice", directoryHint: .isDirectory)
+    public static var voiceRuntimeDirectory: URL {
+        let path = applicationSupport.appending(path: "VoiceRuntime", directoryHint: .isDirectory)
         try? FileManager.default.createDirectory(at: path, withIntermediateDirectories: true)
         return path
     }
 
-    public static var tarstKeyword: URL { applicationSupport.appending(path: "TARST.ppn") }
-    public static var heyTarstKeyword: URL { applicationSupport.appending(path: "Hey-TARST.ppn") }
-    public static var porcupineModel: URL { picovoiceDirectory.appending(path: "porcupine_params.pv") }
-    public static var porcupineLibrary: URL { picovoiceDirectory.appending(path: "libpv_porcupine.dylib") }
-    public static var cobraLibrary: URL { picovoiceDirectory.appending(path: "libpv_cobra.dylib") }
-
-    public static var isPicovoiceRuntimeInstalled: Bool {
-        [porcupineModel, porcupineLibrary, cobraLibrary].allSatisfy { FileManager.default.fileExists(atPath: $0.path) }
+    public static var modelsDirectory: URL {
+        let path = applicationSupport.appending(path: "Models", directoryHint: .isDirectory)
+        try? FileManager.default.createDirectory(at: path, withIntermediateDirectories: true)
+        return path
     }
 
+    public static var tarstKeyword: URL { modelsDirectory.appending(path: "TARST.onnx") }
+    public static var heyTarstKeyword: URL { modelsDirectory.appending(path: "Hey-TARST.onnx") }
+    public static var python: URL { voiceRuntimeDirectory.appending(path: "venv/bin/python3") }
+    public static var detectorWorker: URL { voiceRuntimeDirectory.appending(path: "local_voice_detector.py") }
+
     public static var isConfigured: Bool {
-        KeychainStore.readAccessKey()?.isEmpty == false
+        FileManager.default.isExecutableFile(atPath: python.path)
+            && FileManager.default.fileExists(atPath: detectorWorker.path)
             && [tarstKeyword, heyTarstKeyword].allSatisfy { FileManager.default.fileExists(atPath: $0.path) }
-            && isPicovoiceRuntimeInstalled
     }
 
     public static func importKeyword(from source: URL, as destination: URL) throws {

@@ -15,19 +15,22 @@ public final class AudioRuntime {
     private let audioEngine = AVAudioEngine()
     private let processingQueue = DispatchQueue(label: "com.tarst.audio-processing")
     private let ringBuffer = PCM16RingBuffer()
-    private var engine: PicovoiceEngine?
+    private var detector: LocalVoiceDetector?
     private var accumulated: [Int16] = []
     private let session = SessionController()
     private var isRunning = false
 
     public init() {}
 
-    public func start(accessKey: String) throws {
-        let picovoice = try PicovoiceEngine(accessKey: accessKey)
-        engine = picovoice
+    public func start() throws {
+        let localDetector = try LocalVoiceDetector()
+        localDetector.onEvent = { [weak self] event in
+            self?.processingQueue.async { self?.consume(event) }
+        }
+        detector = localDetector
         accumulated.removeAll(keepingCapacity: true)
-        accumulated.reserveCapacity(picovoice.frameLength * 2)
-        try installTap(sampleRate: Double(picovoice.sampleRate))
+        accumulated.reserveCapacity(1280 * 2)
+        try installTap(sampleRate: 16_000)
         audioEngine.prepare()
         try audioEngine.start()
         isRunning = true
@@ -37,7 +40,8 @@ public final class AudioRuntime {
     public func stop() {
         audioEngine.inputNode.removeTap(onBus: 0)
         audioEngine.stop()
-        engine = nil
+        detector?.stop()
+        detector = nil
         isRunning = false
         accumulated.removeAll(keepingCapacity: false)
         ringBuffer.clear()
@@ -64,16 +68,13 @@ public final class AudioRuntime {
     }
 
     private func consume(_ pcm: [Int16]) {
-        guard isRunning, let engine else { return }
+        guard isRunning, detector != nil else { return }
         ringBuffer.append(pcm[...])
         accumulated.append(contentsOf: pcm)
-        while accumulated.count >= engine.frameLength {
-            let frame = accumulated.prefix(engine.frameLength)
-            accumulated.removeFirst(engine.frameLength)
-            do {
-                let result = try engine.process(frame)
-                evaluate(result: result)
-            } catch {
+        while accumulated.count >= 1280 { // openWakeWord's recommended 80 ms frame at 16 kHz.
+            let frame = accumulated.prefix(1280)
+            accumulated.removeFirst(1280)
+            do { try detector?.process(frame) } catch {
                 emit(.error(error))
                 stop()
                 return
@@ -81,12 +82,22 @@ public final class AudioRuntime {
         }
     }
 
-    private func evaluate(result: (keywordIndex: Int?, voiceProbability: Float)) {
+    private func consume(_ event: LocalVoiceDetector.Event) {
+        guard isRunning else { return }
+        switch event {
+        case .prediction(let keywordIndex, let voiceProbability):
+            evaluate(keywordIndex: keywordIndex, voiceProbability: voiceProbability)
+        case .error(let message):
+            emit(.error(LocalVoiceDetectorError.failedToStart(message)))
+        }
+    }
+
+    private func evaluate(keywordIndex: Int?, voiceProbability: Float) {
         let now = ProcessInfo.processInfo.systemUptime
-        let effect = session.process(keywordIndex: result.keywordIndex, voiceProbability: result.voiceProbability, at: now)
+        let effect = session.process(keywordIndex: keywordIndex, voiceProbability: voiceProbability, at: now)
         switch effect {
         case .none: break
-        case .wakeWordAccepted: emit(.wakeWord(result.keywordIndex ?? 0))
+        case .wakeWordAccepted: emit(.wakeWord(keywordIndex ?? 0))
         case .speechStarted: emit(.speechStarted)
         case .turnEnded: emit(.turnEnded)
         case .speechDuringResponse: emit(.speechDuringResponse)
