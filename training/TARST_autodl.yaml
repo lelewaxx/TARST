@@ -1,0 +1,32 @@
+model_name: "TARST"
+target_phrase:
+  - "TARST"
+custom_negative_phrases:
+  - "toast"
+  - "trust"
+  - "start"
+  - "artist"
+  - "tar"
+n_samples: 20000
+n_samples_val: 2000
+tts_batch_size: 50
+augmentation_batch_size: 16
+piper_sample_generator_path: "./piper-sample-generator"
+output_dir: "./TARST_model"
+rir_paths:
+  - "./mit_rirs"
+background_paths:
+  - "./background_clips"
+background_paths_duplication_rate:
+  - 1
+false_positive_validation_data_path: "./validation_set_features.npy"
+augmentation_rounds: 1
+feature_data_files: {}
+batch_n_per_class:
+  adversarial_negative: 128
+  positive: 128
+model_type: "dnn"
+layer_size: 32
+steps: 50000
+max_negative_weight: 1500
+target_false_positives_per_hour: 0.2
