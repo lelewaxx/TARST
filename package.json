@@ -4,7 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node server.mjs",
-    "start": "node server.mjs"
+    "dev:web": "node server.mjs",
+    "start": "node server.mjs",
+    "test": "node --test",
+    "runtime:simulate": "node src/runtime/simulate.mjs",
+    "agent:runtime": "node agent/src/stdio-runtime.mjs"
+  },
+  "dependencies": {
+    "openai": "^7.4.0"
   }
 }

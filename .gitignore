@@ -1,5 +1,16 @@
 node_modules/
+.build/
+dist/
 .env
 .env.*
 .DS_Store
 TARST-2026-08-06.zip
+*.onnx
+
+# Local wake-word training data and generated artifacts
+training-workspace/
+training/*_model/
+training/*_clips/
+training/*.wav
+training/*.flac
+training/*.npy
