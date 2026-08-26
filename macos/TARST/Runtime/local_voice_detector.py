@@ -36,12 +36,12 @@ def main():
             return
         samples = np.frombuffer(raw, dtype=np.int16).copy()
         scores = wake_model.predict(samples)
+        wake_scores = [float(scores.get(model_name, 0.0)) for model_name in model_names]
         keyword_index = None
-        for index, model_name in enumerate(model_names):
-            score = float(scores.get(model_name, 0.0))
-            if score >= args.wake_threshold:
-                keyword_index = index
-                break
+        if wake_scores:
+            best_index = int(np.argmax(wake_scores))
+            if wake_scores[best_index] >= args.wake_threshold:
+                keyword_index = best_index
 
         # Silero VAD's 16 kHz ONNX model takes 512-sample (32 ms) chunks, while
         # openWakeWord prefers 1280-sample (80 ms) chunks. Keep both models local
@@ -54,7 +54,11 @@ def main():
             probability = vad_model(normalized, SAMPLE_RATE)
             probabilities.append(float(probability.item()))
         speech_probability = max(probabilities, default=0.0)
-        print(json.dumps({"keyword_index": keyword_index, "voice_probability": speech_probability}), flush=True)
+        print(json.dumps({
+            "keyword_index": keyword_index,
+            "wake_scores": wake_scores,
+            "voice_probability": speech_probability,
+        }), flush=True)
 
 
 if __name__ == "__main__":

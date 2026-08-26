@@ -18,5 +18,8 @@ public final class PCM16RingBuffer {
     }
 
     public var sampleCount: Int { storage.count }
+    public func recent(seconds: Double, sampleRate: Int = 16_000) -> [Int16] {
+        Array(storage.suffix(Int(seconds * Double(sampleRate))))
+    }
     public func clear() { storage.removeAll(keepingCapacity: true) }
 }

@@ -20,10 +20,33 @@ public enum TARSTPaths {
         return path
     }
 
+    public static var diagnosticsDirectory: URL {
+        let path = applicationSupport.appending(path: "Diagnostics", directoryHint: .isDirectory)
+        try? FileManager.default.createDirectory(at: path, withIntermediateDirectories: true)
+        return path
+    }
+
     public static var tarstKeyword: URL { modelsDirectory.appending(path: "TARST.onnx") }
     public static var heyTarstKeyword: URL { modelsDirectory.appending(path: "Hey-TARST.onnx") }
     public static var python: URL { voiceRuntimeDirectory.appending(path: "venv/bin/python3") }
-    public static var detectorWorker: URL { voiceRuntimeDirectory.appending(path: "local_voice_detector.py") }
+    public static var detectorWorker: URL {
+        let bundled = Bundle.main.resourceURL?.appending(path: "local_voice_detector.py")
+        if let bundled, FileManager.default.fileExists(atPath: bundled.path) { return bundled }
+        return voiceRuntimeDirectory.appending(path: "local_voice_detector.py")
+    }
+
+    public static var agentRuntimeEntry: URL {
+        let bundled = Bundle.main.resourceURL?.appending(path: "agent/src/stdio-runtime.mjs")
+        if let bundled, FileManager.default.fileExists(atPath: bundled.path) { return bundled }
+        return URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appending(path: "agent/src/stdio-runtime.mjs")
+    }
+
+    public static var nodeExecutable: URL? {
+        let candidates = ["/opt/homebrew/bin/node", "/usr/local/bin/node", "/usr/bin/node"]
+        return candidates.lazy.map(URL.init(fileURLWithPath:)).first {
+            FileManager.default.isExecutableFile(atPath: $0.path)
+        }
+    }
 
     public static var isConfigured: Bool {
         FileManager.default.isExecutableFile(atPath: python.path)

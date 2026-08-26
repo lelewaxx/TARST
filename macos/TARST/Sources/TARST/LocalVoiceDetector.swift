@@ -18,7 +18,7 @@ enum LocalVoiceDetectorError: LocalizedError {
 /// microphone owner; frames leave the process only through this machine's stdin pipe.
 final class LocalVoiceDetector {
     enum Event {
-        case prediction(keywordIndex: Int?, voiceProbability: Float)
+        case prediction(keywordIndex: Int?, wakeScores: [Float], voiceProbability: Float)
         case error(String)
     }
 
@@ -37,6 +37,12 @@ final class LocalVoiceDetector {
             "--model", TARSTPaths.tarstKeyword.path,
             "--model", TARSTPaths.heyTarstKeyword.path
         ]
+        var environment = ProcessInfo.processInfo.environment
+        // urllib3 emits a LibreSSL compatibility warning on Apple's bundled
+        // Python even though this local-only worker never performs networking.
+        // Do not let that warning masquerade as a detector failure on stderr.
+        environment["PYTHONWARNINGS"] = "ignore"
+        process.environment = environment
         process.standardInput = input
         process.standardOutput = output
         process.standardError = error
@@ -83,11 +89,17 @@ final class LocalVoiceDetector {
 
     private func decode(_ data: Data) {
         guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let voice = object["voice_probability"] as? NSNumber else {
+              let voice = object["voice_probability"] as? NSNumber,
+              let scoreNumbers = object["wake_scores"] as? [NSNumber],
+              scoreNumbers.count == 2 else {
             onEvent?(.error(LocalVoiceDetectorError.invalidEvent.localizedDescription))
             return
         }
         let keyword = (object["keyword_index"] as? NSNumber)?.intValue
-        onEvent?(.prediction(keywordIndex: keyword, voiceProbability: voice.floatValue))
+        onEvent?(.prediction(
+            keywordIndex: keyword,
+            wakeScores: scoreNumbers.map(\.floatValue),
+            voiceProbability: voice.floatValue
+        ))
     }
 }
